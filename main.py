@@ -40,13 +40,18 @@ def uploadSim():
 
     if fileToUpload:
         matFiles = []
+        matNames = []
         variables = dict()
         uploadedData = dict()
-        matNames = []
+        
+        if 'fileTimes' not in sl.session_state:      
+            sl.session_state.fileTimes = dict()
 
         for file in fileToUpload:
             fileName = file.name.split('.')[0]
             if ".mat" in file.name:
+
+                sl.session_state.fileTimes[fileName] = sc.loadmat(file)['data_2'][0,]
                 uploadedData[fileName] = dict()  #Creating a 2D dictionary to store filtered variables and data for each file
                 matFiles.append(dy.DyMatFile(file))
                 matNames.append(fileName)
@@ -194,18 +199,19 @@ def showFilters(uploadedData):
     else:
         return None
 
-def getSimTime(filePath): #Dymat does not read in time 
-    return sc.loadmat(filePath)['data_2'][0,]
+#def getSimTime(filePath): #Dymat does not read in time 
+#    return sc.loadmat(filePath)['data_2'][0,]
     
 def findTimeViolations(fileName, data):
     timeList = []
     prev = -1
     counter = 0
+    fileTime = sl.session_state.fileTimes[fileName]
     for val in data:
         if prev !=-1: #skip initial value 
             if val == 3 and prev != 3:
                 #append simulation time when the violation occoured in float, rounded to two decimals
-                timeList.append(round(float(getSimTime(fileName)[counter]),2))
+                timeList.append(round(float(fileTime[counter]),2))
             elif val < 1 or val > 4:
                 print("Data_error")
         prev = val
@@ -270,7 +276,7 @@ def makeIndividualReport(file, filteredData):
     values = [1.0, 2.0, 3.0, 4.0]
     
     with sl.expander("Report for: "+file):
-        with sl.container(border=False, height=350):
+        with sl.container(border=False, height=480):
             for requirement in filteredData[file]:
                 with sl.container(border=True):
                     col1, col2 = sl.columns(2)
@@ -317,7 +323,7 @@ def makeIndividualReport(file, filteredData):
                         else:
                             sl.write("Violation count: -")
                     
-                    x = getSimTime(file)
+                    x = sl.session_state.fileTimes[file] #getSimTime(file)
                     y = filteredData[file][requirement]
                     
                     fig, ax = mpl.subplots()
@@ -343,6 +349,7 @@ def visualizeData(filteredData):
 
 def saveButton(filteredData):
     dataToSave = dict()
+    timeToSave = dict()
     name = sl.text_input("Dashboard name: (Press Enter to apply)", placeholder="MyDashboard")
     
     if not name:
@@ -350,28 +357,39 @@ def saveButton(filteredData):
     
     for file in filteredData:
         dataToSave[file] = dict()
+        timeToSave[file] = sl.session_state.fileTimes[file].tolist()
         for req in filteredData[file]:
             dataToSave[file][req] = filteredData[file][req].tolist()
 
-    dataToSave = json.dumps(dataToSave, indent=4)
     dateTime = dtime.datetime.now().strftime("%d-%m-%Y_%H-%M")
     sl.download_button(
         label = "Download Dashboard",
-        data = dataToSave,
+        data = json.dumps([dataToSave, timeToSave]),
         file_name = name+"_"+dateTime+".json",
         on_click= "ignore",
         type = "primary",
-        icon = ":material/download:")  
+        icon = ":material/download:"
+        )  
         
 def loadDashboard():
     sl.title("Load Dashboard")
     file = sl.file_uploader("Upload dashboard file", type=["json"])
+    if 'fileTimes' not in sl.session_state:      
+        sl.session_state.fileTimes = dict()
+
     if file:
+        loadedData = dict()
         obj = json.load(file)
-        for file in obj:
-            for req in obj[file]:
-                obj[file][req] = np.array(obj[file][req])
-        return obj
+        for index, value in enumerate(obj):
+            if index == 0:
+                for fileName in value:
+                    loadedData[fileName] = dict()
+                    for req in value[fileName]:
+                        loadedData[fileName][req] = np.array(value[fileName][req])
+            elif index == 1:
+                for fileName in value:
+                    sl.session_state.fileTimes[fileName] = value[fileName]
+        return loadedData
 
 def clearSession():
     for key in sl.session_state.keys():
@@ -392,6 +410,8 @@ def main():#det som finns i main ska läggas i funktioner
 
     if sl.session_state.dashOption:
         if sl.session_state.dashOption['new']:
+            if 'fileTimes' in sl.session_state:
+                sl.session_state.pop('fileTimes')
             uploadedData = uploadSim()
             if uploadedData:
                 filteredData = showFilters(uploadedData)
