@@ -225,14 +225,18 @@ def findTimeViolations(fileName, data):
     return timeList, timeStr
 
 def summaryReport(filteredData):
-    scenarioPV = 0.0
+    #scenarioPV = 0.0
+    #scenarioName = ""
     reqNr = 0
     reqU = 0
     reqS = 0
     reqV = 0
     reqVlist = []
+    simTime = 0.0
 
     for file in filteredData:
+        #scenarioName = file
+        simTime = sl.session_state.fileTimes[file][-1]
         for requirement in filteredData[file]:
             reqNr += 1
             match filteredData[file][requirement][-1]:
@@ -255,7 +259,8 @@ def summaryReport(filteredData):
     with cont:
         col1, col2 = sl.columns(2)
         with col1:
-            sl.write("Scenarios: ")
+            #sl.write(scenarioName + ": ")
+            #sl.write("Simulation duration: ")
             sl.write("Total number of requirements: ")
             sl.write("Total number of violated requirements: ")
             sl.write("Total number of untested requirements: ")
@@ -264,7 +269,7 @@ def summaryReport(filteredData):
         with sl.container(height=150):
             sl.markdown("\n".join(f"{i+1}. {req}" for i, req in enumerate(reqVlist)))
         with col2:
-            sl.markdown(f'**{scenarioPV}% PV**')
+            #sl.markdown(f'**{scenarioPV}% PV**')
             sl.markdown(f'**{reqNr}**')
             sl.markdown(f'**:red[{reqV}]**')
             sl.markdown(f'**:orange[{reqU}]**')
@@ -274,20 +279,22 @@ def makeIndividualReport(file, filteredData):
     
     color = ["orange","yellow","red","green"]
     values = [1.0, 2.0, 3.0, 4.0]
-    
+    simTime = 0.0
+
     with sl.expander("Report for: "+file):
-        with sl.container(border=False, height=480):
+        with sl.container(border=False, height=590):
             for requirement in filteredData[file]:
                 with sl.container(border=True):
                     col1, col2 = sl.columns(2)
-                    scenarioPV = 0.0
+                    #scenarioPV = 0.0
                     finalState = ""
                     finalValue = 0
                     finalMargin = 0
                     counter = 0
-                    
-                    timeList,when = findTimeViolations(file, filteredData[file][requirement])
 
+                    simTime = sl.session_state.fileTimes[file][-1]
+                    timeList,when = findTimeViolations(file, filteredData[file][requirement])
+                    
                     counter = len(timeList)
 
                     with col1:
@@ -314,7 +321,8 @@ def makeIndividualReport(file, filteredData):
                                 finalState = '''Final state:<span style="color:green"> **Satisfied**</span>'''
                         
                         sl.markdown(f"**{requirement}**")
-                        sl.write("Scenarios: " + str(scenarioPV) + "% PV")
+                        #sl.write("Scenarios: " + str(scenarioPV) + "% PV")
+                        sl.write("Simulation duration: "+str(simTime) + "s")
                         sl.markdown(finalState, unsafe_allow_html=True)
                         sl.write("Final value: " + str(finalValue))
                         sl.write("Final margin: " + str(finalMargin))
