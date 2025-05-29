@@ -285,7 +285,7 @@ def makeIndividualReport(file, filteredData):
         with sl.container(border=False, height=590):
             for requirement in filteredData[file]:
                 with sl.container(border=True):
-                    col1, col2 = sl.columns(2)
+                    col1, col2 = sl.columns(2, gap="large")
                     #scenarioPV = 0.0
                     finalState = ""
                     finalValue = 0
