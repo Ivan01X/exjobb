@@ -282,7 +282,7 @@ def makeIndividualReport(file, filteredData):
     simTime = 0.0
 
     with sl.expander("Report for: "+file):
-        with sl.container(border=False, height=590, width=669.5):
+        with sl.container(border=False, height=590):
             for requirement in filteredData[file]:
                 with sl.container(border=True):
                     col1, col2 = sl.columns(2)
