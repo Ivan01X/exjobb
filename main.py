@@ -2,7 +2,7 @@ import streamlit as sl
 import scipy.io as sc
 
 import matplotlib.pyplot as mpl
-#import pandas as pd
+import pandas as pd
 import dymat as dy
 import numpy as np
 import json
@@ -233,8 +233,16 @@ def summaryReport(filteredData):
     reqV = 0
     reqVlist = []
     simTime = 0.0
+    fileStats = dict()
+    
 
     for file in filteredData:
+        fileStats[file] = dict()
+        fileStats[file]["reqNr"] = reqNr
+        fileStats[file]["reqV"] = reqV
+        fileStats[file]["reqU"] = reqU
+        fileStats[file]["reqS"] = reqS
+        
         #scenarioName = file
         simTime = sl.session_state.fileTimes[file][-1]
         for requirement in filteredData[file]:
@@ -250,30 +258,46 @@ def summaryReport(filteredData):
                     reqVlist.append(requirement+' from '+file + " is violated at time frame(s): "+when)
                 case 4:
                     reqS += 1 #if last value true bot has beeen false at least once, then what?
-    #TO DO
-    # calc PV, what is it?
+        fileStats[file]["simTime"] = simTime
+        fileStats[file]["reqNr"] = reqNr - fileStats[file]["reqNr"]
+        fileStats[file]["reqV"] = reqV - fileStats[file]["reqV"]
+        fileStats[file]["reqU"] = reqU - fileStats[file]["reqU"]
+        fileStats[file]["reqS"] = reqS - fileStats[file]["reqS"]
+ 
 
+    fileNames = list(fileStats.keys())
     sl.subheader("Batch summary")
-    
-    cont = sl.container(border=True)
-    with cont:
-        col1, col2 = sl.columns(2)
-        with col1:
-            #sl.write(scenarioName + ": ")
-            #sl.write("Simulation duration: ")
-            sl.write("Total number of requirements: ")
-            sl.write("Total number of violated requirements: ")
-            sl.write("Total number of untested requirements: ")
-            sl.write("Total number of satisfied requirements: ")
+ 
+    with sl.container(border=True):
+        matrix = []
+        for i in range(1, (len(filteredData)+2), 1):
+            
+            if i == 1:
+                matrix.append(['/',
+                               f'**{reqNr}**',
+                               f'**:red[{reqV}]**',
+                               f'**:orange[{reqU}]**',
+                               f'**:green[{reqS}]**'])
+            else:
+                matrix.append([(str(fileStats[fileNames[i-2]]["simTime"]) + "s"),
+                                f'**{fileStats[fileNames[i-2]]["reqNr"]}**',
+                                f'**:red[{fileStats[fileNames[i-2]]["reqV"]}]**',
+                                f'**:orange[{fileStats[fileNames[i-2]]["reqU"]}]**',
+                                f'**:green[{fileStats[fileNames[i-2]]["reqS"]}]**'])
+            
+        matrix = zip(*matrix) #transpose 2x2 matrix 
+        df = pd.DataFrame(matrix,columns=["Total"]+fileNames)
+        df.index = ["Simulation Time:",
+                    "Number of requirements:",
+                    "Number of violated requirements:",
+                    "Number of untested requirements:",
+                    "Number of satisfied requirements:"]
+        sl.table(df)
+
         sl.write("List of violated requirements: ")
         with sl.container(height=150):
             sl.markdown("\n".join(f"{i+1}. {req}" for i, req in enumerate(reqVlist)))
-        with col2:
-            #sl.markdown(f'**{scenarioPV}% PV**')
-            sl.markdown(f'**{reqNr}**')
-            sl.markdown(f'**:red[{reqV}]**')
-            sl.markdown(f'**:orange[{reqU}]**')
-            sl.markdown(f'**:green[{reqS}]**')
+        
             
 def makeIndividualReport(file, filteredData):
     
